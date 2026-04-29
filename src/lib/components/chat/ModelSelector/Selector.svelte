@@ -219,22 +219,23 @@
 					})
 	).filter((item) => !(item.model?.info?.meta?.hidden ?? false));
 
-	// Group models by provider when not searching (flat list when searching)
 	$: displayItems = (() => {
 		if (searchValue) return filteredItems;
-		const result: any[] = [];
-		let prevProvider = '';
+		const result = [];
+		let prev = '';
 		for (const item of filteredItems) {
 			const parts = (item.value || '').split('/');
 			const provider = parts.length >= 2 ? parts.slice(0, -1).join(' / ') : (item.model?.owned_by || 'Other');
-			if (provider !== prevProvider) {
-				prevProvider = provider;
-				result.push({ _groupHeader: provider });
-			}
+			if (provider !== prev) { prev = provider; result.push({ _groupHeader: provider }); }
 			result.push(item);
 		}
 		return result;
 	})();
+
+	$: if (!searchValue && !selectedProvider && displayItems.length > 0) {
+		const h = displayItems.find(d => d._groupHeader);
+		if (h) selectedProvider = h._groupHeader;
+	}
 
 	$: if (
 		selectedTag !== undefined ||
@@ -587,13 +588,12 @@
 					{/if}
 
 					{#if !searchValue}
-						<!-- Two-panel layout -->
 						{@const groups = (() => {
-							const g: { name: string; items: any[] }[] = [];
+							const g = [];
 							let cur = '';
 							for (const d of displayItems) {
-								if ((d as any)._groupHeader) {
-									cur = (d as any)._groupHeader;
+								if (d._groupHeader) {
+									cur = d._groupHeader;
 									g.push({ name: cur, items: [] });
 								} else if (cur) {
 									g[g.length - 1].items.push(d);
@@ -604,18 +604,13 @@
 						{@const activeModels = groups.find(g => g.name === selectedProvider)?.items || []}
 
 						{#if groups.length === 0}
-							<div class="px-4 py-6 text-center text-sm text-gray-500">
-								{$i18n.t('No results found')}
-							</div>
+							<div class="px-4 py-6 text-center text-sm text-gray-500">{$i18n.t('No results found')}</div>
 						{:else}
 							<div class="flex" style="height: 320px;">
-								<!-- Left sidebar: providers -->
 								<aside class="w-48 flex-shrink-0 overflow-y-auto border-r border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/50 p-2 flex flex-col gap-1">
 									{#each groups as group}
 										<button
-											class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 {selectedProvider === group.name
-												? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-semibold'
-												: 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}"
+											class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 {selectedProvider === group.name ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}"
 											on:click={() => selectedProvider = group.name}
 										>
 											<div class="truncate">{group.name}</div>
@@ -623,69 +618,32 @@
 										</button>
 									{/each}
 								</aside>
-
-								<!-- Right panel: model list -->
 								<section class="flex-1 overflow-y-auto p-2">
 									{#if activeModels.length === 0}
 										<div class="px-3 py-6 text-center text-sm text-gray-500">Select a provider</div>
 									{:else}
 										{#each activeModels as item, i (item.value)}
-											<ModelItem
-												{selectedModelIdx}
-												{item}
-												index={i}
-												{value}
-												{pinModelHandler}
-												{unloadModelHandler}
-												{deleteModelHandler}
-												onClick={() => { value = item.value; show = false; }}
-											/>
+											<ModelItem {selectedModelIdx} {item} index={i} {value} {pinModelHandler} {unloadModelHandler} {deleteModelHandler}
+												onClick={() => { value = item.value; show = false; }} />
 										{/each}
 									{/if}
 								</section>
 							</div>
 						{/if}
 					{:else}
-						<!-- Search results: flat list -->
 						<div class="max-h-64 overflow-y-auto px-1">
-							{#each displayItems.filter((d: any) => !d._groupHeader) as item, i (item.value)}
-								<ModelItem
-									{selectedModelIdx}
-									{item}
-									index={i}
-									{value}
-									{pinModelHandler}
-									{unloadModelHandler}
-									{deleteModelHandler}
-									onClick={() => { value = item.value; show = false; }}
-								/>
+							{#each displayItems.filter(d => !d._groupHeader) as item, i (item.value)}
+								<ModelItem {selectedModelIdx} {item} index={i} {value} {pinModelHandler} {unloadModelHandler} {deleteModelHandler}
+									onClick={() => { value = item.value; show = false; }} />
 							{/each}
-							{#if displayItems.filter((d: any) => !d._groupHeader).length === 0}
+							{#if displayItems.filter(d => !d._groupHeader).length === 0}
 								<div class="px-3 py-6 text-center text-sm text-gray-500">{$i18n.t('No results found')}</div>
 							{/if}
 						</div>
 					{/if}
 
-						{#if !(searchValue.trim() in $MODEL_DOWNLOAD_POOL) && searchValue && ollamaVersion && $user?.role === 'admin'}
-							<Tooltip
-								content={$i18n.t(`Pull "{{searchValue}}" from Ollama.com`, {
-									searchValue: searchValue
-								})}
-								placement="top-start"
-							>
-								<button
-									class="flex w-full font-medium line-clamp-1 select-none items-center rounded-button py-2 pl-3 pr-1.5 text-sm text-gray-700 dark:text-gray-100 outline-hidden transition-all duration-75 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl cursor-pointer data-highlighted:bg-muted"
-									on:click={() => {
-										pullModelHandler();
-									}}
-								>
-									<div class=" truncate">
-										{$i18n.t(`Pull "{{searchValue}}" from Ollama.com`, {
-											searchValue: searchValue
-										})}
-									</div>
-								</button>
-							</Tooltip>
+					<div class="hidden w-[42rem]" />
+					<div class="hidden w-[32rem]" />
 				</slot>
 			</div>
 		</div>
