@@ -218,6 +218,23 @@
 					})
 	).filter((item) => !(item.model?.info?.meta?.hidden ?? false));
 
+	// Group models by provider when not searching (flat list when searching)
+	$: displayItems = (() => {
+		if (searchValue) return filteredItems;
+		const result: any[] = [];
+		let prevProvider = '';
+		for (const item of filteredItems) {
+			const parts = (item.value || '').split('/');
+			const provider = parts.length >= 2 ? parts.slice(0, -1).join(' / ') : (item.model?.owned_by || 'Other');
+			if (provider !== prevProvider) {
+				prevProvider = provider;
+				result.push({ _groupHeader: provider });
+			}
+			result.push(item);
+		}
+		return result;
+	})();
+
 	$: if (
 		selectedTag !== undefined ||
 		selectedConnectionType !== undefined ||
@@ -229,7 +246,7 @@
 	const resetView = async () => {
 		await tick();
 
-		const selectedInFiltered = filteredItems.findIndex((item) => item.value === value);
+		const selectedInFiltered = displayItems.findIndex((item) => item.value === value);
 
 		if (selectedInFiltered >= 0) {
 			// The selected model is visible in the current filter
@@ -479,7 +496,7 @@
 
 	$: visibleStart = Math.max(0, Math.floor(listScrollTop / ITEM_HEIGHT) - OVERSCAN);
 	$: visibleEnd = Math.min(
-		filteredItems.length,
+		displayItems.length,
 		Math.ceil((listScrollTop + 256) / ITEM_HEIGHT) + OVERSCAN
 	);
 </script>
@@ -731,25 +748,30 @@
 								}}
 							>
 								<div style="height: {visibleStart * ITEM_HEIGHT}px;" />
-								{#each filteredItems.slice(visibleStart, visibleEnd) as item, i (item.value)}
+								{#each displayItems.slice(visibleStart, visibleEnd) as item, i (item._groupHeader || item.value)}
 									{@const index = visibleStart + i}
-									<ModelItem
-										{selectedModelIdx}
-										{item}
-										{index}
-										{value}
-										{pinModelHandler}
-										{unloadModelHandler}
-										{deleteModelHandler}
-										onClick={() => {
-											value = item.value;
-											selectedModelIdx = index;
-
-											show = false;
-										}}
-									/>
+									{#if item._groupHeader}
+										<div class="px-3 py-1.5 text-[0.65rem] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-850/80 border-b border-gray-100 dark:border-gray-800 sticky top-0 z-10">
+											{item._groupHeader}
+										</div>
+									{:else}
+										<ModelItem
+											{selectedModelIdx}
+											{item}
+											{index}
+											{value}
+											{pinModelHandler}
+											{unloadModelHandler}
+											{deleteModelHandler}
+											onClick={() => {
+												value = item.value;
+												selectedModelIdx = index;
+												show = false;
+											}}
+										/>
+									{/if}
 								{/each}
-								<div style="height: {(filteredItems.length - visibleEnd) * ITEM_HEIGHT}px;" />
+								<div style="height: {(displayItems.length - visibleEnd) * ITEM_HEIGHT}px;" />
 							</div>
 						{/if}
 
