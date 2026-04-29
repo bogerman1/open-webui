@@ -131,6 +131,7 @@
 	let selectedConnectionType = '';
 
 	let ollamaVersion = null;
+	let selectedProvider = "";
 	let selectedModelIdx = 0;
 
 	const fuse = new Fuse(
@@ -572,9 +573,8 @@
 			>
 				<slot>
 					{#if searchEnabled}
-						<div class="flex items-center gap-2.5 px-4.5 pt-3.5 mb-1.5">
-							<Search className="size-4" strokeWidth="2.5" />
-
+						<div class="flex items-center gap-2.5 px-4 pt-3.5 mb-1">
+							<Search className="size-4 shrink-0" strokeWidth="2.5" />
 							<input
 								id="model-search-input"
 								bind:value={searchValue}
@@ -582,198 +582,89 @@
 								placeholder={searchPlaceholder}
 								autocomplete="off"
 								aria-label={$i18n.t('Search In Models')}
-								on:keydown={(e) => {
-									if (e.code === 'Enter' && filteredItems.length > 0) {
-										value = filteredItems[selectedModelIdx].value;
-										show = false;
-										return; // dont need to scroll on selection
-									} else if (e.code === 'ArrowDown') {
-										e.stopPropagation();
-										selectedModelIdx = Math.min(selectedModelIdx + 1, filteredItems.length - 1);
-									} else if (e.code === 'ArrowUp') {
-										e.stopPropagation();
-										selectedModelIdx = Math.max(selectedModelIdx - 1, 0);
-									} else {
-										// if the user types something, reset to the top selection.
-										selectedModelIdx = 0;
-									}
-
-									const item = document.querySelector(`[data-arrow-selected="true"]`);
-									item?.scrollIntoView({
-										block: 'center',
-										inline: 'nearest',
-										behavior: 'instant'
-									});
-								}}
 							/>
 						</div>
 					{/if}
 
-					<div class="px-2">
-						{#if tags && items.filter((item) => !(item.model?.info?.meta?.hidden ?? false)).length > 0}
-							<div
-								class=" flex w-full bg-white dark:bg-gray-850 overflow-x-auto scrollbar-none font-[450] mb-0.5"
-								on:wheel={(e) => {
-									if (e.deltaY !== 0) {
-										e.preventDefault();
-										e.currentTarget.scrollLeft += e.deltaY;
-									}
-								}}
-							>
-								<div
-									class="flex gap-1 w-fit text-center text-sm rounded-full bg-transparent px-1.5 whitespace-nowrap"
-									bind:this={tagsContainerElement}
-								>
-									{#if items.find((item) => item.model?.connection_type === 'local') || items.find((item) => item.model?.connection_type === 'external') || items.find((item) => item.model?.direct) || tags.length > 0}
-										<button
-											class="min-w-fit outline-none px-1.5 py-0.5 {selectedTag === '' &&
-											selectedConnectionType === ''
-												? ''
-												: 'text-gray-300 dark:text-gray-600 hover:text-gray-700 dark:hover:text-white'} transition capitalize"
-											aria-pressed={selectedTag === '' && selectedConnectionType === ''}
-											on:click={() => {
-												selectedConnectionType = '';
-												selectedTag = '';
-											}}
-										>
-											{$i18n.t('All')}
-										</button>
-									{/if}
+					{#if !searchValue}
+						<!-- Two-panel layout -->
+						{@const groups = (() => {
+							const g: { name: string; items: any[] }[] = [];
+							let cur = '';
+							for (const d of displayItems) {
+								if ((d as any)._groupHeader) {
+									cur = (d as any)._groupHeader;
+									g.push({ name: cur, items: [] });
+								} else if (cur) {
+									g[g.length - 1].items.push(d);
+								}
+							}
+							return g;
+						})()}
+						{@const activeModels = groups.find(g => g.name === selectedProvider)?.items || []}
 
-									{#if items.find((item) => item.model?.connection_type === 'local')}
-										<button
-											class="min-w-fit outline-none px-1.5 py-0.5 {selectedConnectionType ===
-											'local'
-												? ''
-												: 'text-gray-300 dark:text-gray-600 hover:text-gray-700 dark:hover:text-white'} transition capitalize"
-											aria-pressed={selectedConnectionType === 'local'}
-											on:click={() => {
-												selectedTag = '';
-												selectedConnectionType = 'local';
-											}}
-										>
-											{$i18n.t('Local')}
-										</button>
-									{/if}
-
-									{#if items.find((item) => item.model?.connection_type === 'external')}
-										<button
-											class="min-w-fit outline-none px-1.5 py-0.5 {selectedConnectionType ===
-											'external'
-												? ''
-												: 'text-gray-300 dark:text-gray-600 hover:text-gray-700 dark:hover:text-white'} transition capitalize"
-											aria-pressed={selectedConnectionType === 'external'}
-											on:click={() => {
-												selectedTag = '';
-												selectedConnectionType = 'external';
-											}}
-										>
-											{$i18n.t('External')}
-										</button>
-									{/if}
-
-									{#if items.find((item) => item.model?.direct)}
-										<button
-											class="min-w-fit outline-none px-1.5 py-0.5 {selectedConnectionType ===
-											'direct'
-												? ''
-												: 'text-gray-300 dark:text-gray-600 hover:text-gray-700 dark:hover:text-white'} transition capitalize"
-											aria-pressed={selectedConnectionType === 'direct'}
-											on:click={() => {
-												selectedTag = '';
-												selectedConnectionType = 'direct';
-											}}
-										>
-											{$i18n.t('Direct')}
-										</button>
-									{/if}
-
-									{#each tags as tag}
-										<Tooltip content={tag}>
-											<button
-												class="min-w-fit outline-none px-1.5 py-0.5 {selectedTag === tag
-													? ''
-													: 'text-gray-300 dark:text-gray-600 hover:text-gray-700 dark:hover:text-white'} transition capitalize"
-												aria-pressed={selectedTag === tag}
-												on:click={() => {
-													selectedConnectionType = '';
-													selectedTag = tag;
-												}}
-											>
-												{tag.length > 16 ? `${tag.slice(0, 16)}...` : tag}
-											</button>
-										</Tooltip>
-									{/each}
-								</div>
+						{#if groups.length === 0}
+							<div class="px-4 py-6 text-center text-sm text-gray-500">
+								{$i18n.t('No results found')}
 							</div>
-						{/if}
-					</div>
-
-					<div class="px-2.5 group relative">
-						{#if filteredItems.length === 0}
-							{#if items.length === 0 && $user?.role === 'admin'}
-								<div class="flex flex-col items-start justify-center py-6 px-4 text-start">
-									<div class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
-										{$i18n.t('No models available')}
-									</div>
-									<div class="text-xs text-gray-500 dark:text-gray-400 mb-4">
-										{$i18n.t('Connect to an AI provider to start chatting')}
-									</div>
-									<a
-										href="/admin/settings/connections"
-										class="px-4 py-1.5 rounded-xl text-xs font-medium bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100 transition"
-										on:click={() => {
-											show = false;
-										}}
-									>
-										{$i18n.t('Manage Connections')}
-									</a>
-								</div>
-							{:else}
-								<div class="">
-									<div class="block px-3 py-2 text-sm text-gray-700 dark:text-gray-100">
-										{$i18n.t('No results found')}
-									</div>
-								</div>
-							{/if}
 						{:else}
-							<!-- svelte-ignore a11y-no-static-element-interactions -->
-							<div
-								class="max-h-64 overflow-y-auto"
-								role="listbox"
-								aria-label={$i18n.t('Available models')}
-								bind:this={listContainer}
-								on:scroll={() => {
-									listScrollTop = listContainer.scrollTop;
-								}}
-							>
-								<div style="height: {visibleStart * ITEM_HEIGHT}px;" />
-								{#each displayItems.slice(visibleStart, visibleEnd) as item, i (item._groupHeader || item.value)}
-									{@const index = visibleStart + i}
-									{#if item._groupHeader}
-										<div class="px-3 py-1.5 text-[0.65rem] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-850/80 border-b border-gray-100 dark:border-gray-800 sticky top-0 z-10">
-											{item._groupHeader}
-										</div>
+							<div class="flex" style="height: 320px;">
+								<!-- Left sidebar: providers -->
+								<aside class="w-48 flex-shrink-0 overflow-y-auto border-r border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/50 p-2 flex flex-col gap-1">
+									{#each groups as group}
+										<button
+											class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 {selectedProvider === group.name
+												? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-semibold'
+												: 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}"
+											on:click={() => selectedProvider = group.name}
+										>
+											<div class="truncate">{group.name}</div>
+											<div class="text-[0.65rem] text-gray-400 dark:text-gray-500 font-normal">{group.items.length}</div>
+										</button>
+									{/each}
+								</aside>
+
+								<!-- Right panel: model list -->
+								<section class="flex-1 overflow-y-auto p-2">
+									{#if activeModels.length === 0}
+										<div class="px-3 py-6 text-center text-sm text-gray-500">Select a provider</div>
 									{:else}
-										<ModelItem
-											{selectedModelIdx}
-											{item}
-											{index}
-											{value}
-											{pinModelHandler}
-											{unloadModelHandler}
-											{deleteModelHandler}
-											onClick={() => {
-												value = item.value;
-												selectedModelIdx = index;
-												show = false;
-											}}
-										/>
+										{#each activeModels as item, i (item.value)}
+											<ModelItem
+												{selectedModelIdx}
+												{item}
+												index={i}
+												{value}
+												{pinModelHandler}
+												{unloadModelHandler}
+												{deleteModelHandler}
+												onClick={() => { value = item.value; show = false; }}
+											/>
+										{/each}
 									{/if}
-								{/each}
-								<div style="height: {(displayItems.length - visibleEnd) * ITEM_HEIGHT}px;" />
+								</section>
 							</div>
 						{/if}
+					{:else}
+						<!-- Search results: flat list -->
+						<div class="max-h-64 overflow-y-auto px-1">
+							{#each displayItems.filter((d: any) => !d._groupHeader) as item, i (item.value)}
+								<ModelItem
+									{selectedModelIdx}
+									{item}
+									index={i}
+									{value}
+									{pinModelHandler}
+									{unloadModelHandler}
+									{deleteModelHandler}
+									onClick={() => { value = item.value; show = false; }}
+								/>
+							{/each}
+							{#if displayItems.filter((d: any) => !d._groupHeader).length === 0}
+								<div class="px-3 py-6 text-center text-sm text-gray-500">{$i18n.t('No results found')}</div>
+							{/if}
+						</div>
+					{/if}
 
 						{#if !(searchValue.trim() in $MODEL_DOWNLOAD_POOL) && searchValue && ollamaVersion && $user?.role === 'admin'}
 							<Tooltip
