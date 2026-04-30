@@ -39,12 +39,12 @@
 		await updateUserSettings(localStorage.token, { ui: $settings });
 	};
 
+	// Only validate when model list is fully loaded; preserve unknown models on refresh
 	$: if (selectedModels.length > 0 && $models.length > 0) {
-		const _selectedModels = selectedModels.map((model) =>
-			$models.map((m) => m.id).includes(model) ? model : ''
-		);
-
-		if (!equal(_selectedModels, selectedModels)) {
+		const validIds = new Set($models.map((m) => m.id));
+		const _selectedModels = selectedModels.filter((model) => validIds.has(model));
+		// Only update if some models became valid and list actually changed
+		if (_selectedModels.length > 0 && !equal(_selectedModels, selectedModels)) {
 			selectedModels = _selectedModels;
 		}
 	}

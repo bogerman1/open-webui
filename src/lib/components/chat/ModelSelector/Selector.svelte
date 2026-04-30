@@ -131,6 +131,7 @@
 	let selectedConnectionType = '';
 
 	let ollamaVersion = null;
+	
 	let selectedProvider = "";
 	let selectedModelIdx = 0;
 
@@ -576,69 +577,38 @@
 					{#if searchEnabled}
 						<div class="flex items-center gap-2.5 px-4 pt-3.5 mb-1">
 							<Search className="size-4 shrink-0" strokeWidth="2.5" />
-							<input
-								id="model-search-input"
-								bind:value={searchValue}
-								class="w-full text-sm bg-transparent outline-hidden"
-								placeholder={searchPlaceholder}
-								autocomplete="off"
-								aria-label={$i18n.t('Search In Models')}
-							/>
+							<input id="model-search-input" bind:value={searchValue} class="w-full text-sm bg-transparent outline-hidden" placeholder={searchPlaceholder} autocomplete="off" aria-label={$i18n.t('Search In Models')} />
 						</div>
 					{/if}
 
 					{#if !searchValue}
-						{@const groups = (() => {
-							const g = [];
-							let cur = '';
-							for (const d of displayItems) {
-								if (d._groupHeader) {
-									cur = d._groupHeader;
-									g.push({ name: cur, items: [] });
-								} else if (cur) {
-									g[g.length - 1].items.push(d);
-								}
-							}
-							return g;
-						})()}
+						{@const groups = (() => { const g = []; let cur = ''; for (const d of displayItems) { if (d._groupHeader) { cur = d._groupHeader; g.push({ name: cur, items: [] }); } else if (cur) { g[g.length - 1].items.push(d); } } return g; })()}
 						{@const activeModels = groups.find(g => g.name === selectedProvider)?.items || []}
 
 						{#if groups.length === 0}
 							<div class="px-4 py-6 text-center text-sm text-gray-500">{$i18n.t('No results found')}</div>
 						{:else}
 							<div class="flex" style="height: 320px;">
-								<aside class="w-48 flex-shrink-0 overflow-y-auto border-r border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/50 p-2 flex flex-col gap-1">
+								<aside class="w-44 flex-shrink-0 overflow-y-auto border-r border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/50 p-2 flex flex-col gap-0.5">
 									{#each groups as group}
-										<button
-											class="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 {selectedProvider === group.name ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}"
-											on:click={() => selectedProvider = group.name}
-										>
+										<button class="w-full text-left px-2.5 py-2 rounded-xl text-sm font-medium transition {selectedProvider === group.name ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}" on:click={() => selectedProvider = group.name}>
 											<div class="truncate">{group.name}</div>
-											<div class="text-[0.65rem] text-gray-400 dark:text-gray-500 font-normal">{group.items.length}</div>
+											<div class="text-[0.6rem] text-gray-400 dark:text-gray-500 font-normal">{group.items.length}</div>
 										</button>
 									{/each}
 								</aside>
 								<section class="flex-1 overflow-y-auto p-2">
-									{#if activeModels.length === 0}
-										<div class="px-3 py-6 text-center text-sm text-gray-500">Select a provider</div>
-									{:else}
-										{#each activeModels as item, i (item.value)}
-											<ModelItem {selectedModelIdx} {item} index={i} {value} {pinModelHandler} {unloadModelHandler} {deleteModelHandler}
-												onClick={() => { value = item.value; show = false; }} />
-										{/each}
-									{/if}
+									{#each activeModels as item, i (item.value)}
+										<ModelItem {selectedModelIdx} {item} index={i} {value} {pinModelHandler} {unloadModelHandler} {deleteModelHandler} onClick={() => { value = item.value; show = false; }} />
+									{/each}
 								</section>
 							</div>
 						{/if}
 					{:else}
 						<div class="max-h-64 overflow-y-auto px-1">
 							{#each displayItems.filter(d => !d._groupHeader) as item, i (item.value)}
-								<ModelItem {selectedModelIdx} {item} index={i} {value} {pinModelHandler} {unloadModelHandler} {deleteModelHandler}
-									onClick={() => { value = item.value; show = false; }} />
+								<ModelItem {selectedModelIdx} {item} index={i} {value} {pinModelHandler} {unloadModelHandler} {deleteModelHandler} onClick={() => { value = item.value; show = false; }} />
 							{/each}
-							{#if displayItems.filter(d => !d._groupHeader).length === 0}
-								<div class="px-3 py-6 text-center text-sm text-gray-500">{$i18n.t('No results found')}</div>
-							{/if}
 						</div>
 					{/if}
 
