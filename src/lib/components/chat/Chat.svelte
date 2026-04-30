@@ -1579,6 +1579,8 @@
 			if (messages.length === 0) {
 				await initChatHandler(history);
 			} else {
+				if (_streamSaveTimer) { clearTimeout(_streamSaveTimer); _streamSaveTimer = null; }
+				if (_streamSaveTimer) { clearTimeout(_streamSaveTimer); _streamSaveTimer = null; }
 				await saveChatHandler($chatId, history);
 			}
 		}
@@ -1708,8 +1710,9 @@
 		}
 
 		if (content) {
-			// REALTIME_CHAT_SAVE is disabled
 			message.content = content;
+			// Periodically persist during streaming so mid-stream refresh doesn't lose content
+			_throttledStreamSave(history);
 
 			if (navigator.vibrate && ($settings?.hapticFeedback ?? false)) {
 				navigator.vibrate(5);
@@ -2717,6 +2720,21 @@
 
 	const MAX_DRAFT_LENGTH = 5000;
 	let saveDraftTimeout: ReturnType<typeof setTimeout> | null = null;
+	let _streamSaveTimer: ReturnType<typeof setTimeout> | null = null;
+	let _streamSaveLastLen = 0;
+
+	const _throttledStreamSave = (history: any) => {
+		if (_streamSaveTimer) return;
+		_streamSaveTimer = setTimeout(() => {
+			_streamSaveTimer = null;
+			const curMsgs = createMessagesList(history, history.currentId);
+			const curLen = JSON.stringify(curMsgs).length;
+			if (curLen !== _streamSaveLastLen) {
+				_streamSaveLastLen = curLen;
+				saveChatHandler($chatId, history);
+			}
+		}, 3000);
+	};
 
 	const saveDraft = async (draft: any, chatId: string | null = null) => {
 		if (saveDraftTimeout) {
